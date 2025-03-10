@@ -70,7 +70,7 @@ import os
 import subprocess
 # Choose the project (options: 'pytorch', 'tensorflow', 'keras', 'incubator-mxnet', 'caffe')
 project = 'pytorch'
-path = f'{project}.csv'
+path = f'datasets/{project}.csv'
 
 pd_all = pd.read_csv(path)
 pd_all = pd_all.sample(frac=1, random_state=999)  # Shuffle
@@ -157,14 +157,14 @@ for repeated_time in range(REPEAT):
         cv=5,              # 5-fold CV (can be changed)
         scoring='roc_auc'  # Using roc_auc as the metric for selection
     )
-    grid.fit(X_train, y_train)
+    grid.fit(X_train.toarray(), y_train)
 
     # Retrieve the best model
     best_clf = grid.best_estimator_
-    best_clf.fit(X_train, y_train)
+    best_clf.fit(X_train.toarray(), y_train)
 
     # --- 4.4 Make predictions & evaluate ---
-    y_pred = best_clf.predict(X_test)
+    y_pred = best_clf.predict(X_test.toarray())
 
     # Accuracy
     acc = accuracy_score(y_test, y_pred)

@@ -41,7 +41,7 @@ def generate_sample_pair(X_test, sensitive_columns, non_sensitive_columns):
             min_val = X_test[col].min()
             max_val = X_test[col].max()
             perturbation = np.random.uniform(-0.1 * (max_val - min_val), 0.1 * (max_val - min_val))  # Small perturbation
-            sample_a[col] = np.clip(sample_a[col] + perturbation, min_val, max_val)
+            # sample_a[col] = np.clip(sample_a[col] + perturbation, min_val, max_val)
             sample_b[col] = np.clip(sample_b[col] + perturbation, min_val, max_val)
 
     return sample_a, sample_b
@@ -91,8 +91,8 @@ def calculate_idi_ratio(model, X_test, sensitive_columns, non_sensitive_columns,
 # 6. Main function
 def main():
     # 1. Load dataset and model
-    file_path = 'model/processed_kdd_cleaned.csv'  # Dataset path
-    model_path = 'model/model_processed_kdd_cleaned.h5'  # Model path
+    file_path = 'dataset/processed_kdd_cleaned.csv'  # Dataset path
+    model_path = 'DNN/model_processed_kdd_cleaned.h5'  # Model path
     X_train, X_test, y_train, y_test = load_and_preprocess_data(file_path)
     model = keras.models.load_model(model_path)
 
