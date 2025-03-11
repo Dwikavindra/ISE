@@ -49,6 +49,7 @@ def remove_stopwords(text):
     """Remove stopwords from the text."""
     return " ".join([word for word in str(text).split() if word not in final_stop_words_list])
 
+
 def clean_str(string):
     """
     Clean text by removing non-alphanumeric characters,
