@@ -1,10 +1,10 @@
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 
-device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
 
 def reset(model, model_state):
     model.load_state_dict(model_state)
@@ -12,18 +12,27 @@ def reset(model, model_state):
 def entropy(tensor):
     return -(F.softmax(tensor, dim=-1) * F.log_softmax(tensor, dim=-1)).sum(dim=-1)
 def configureTent(model):
-    for name, param in model.named_parameters():
-        if "norm" not in name:
-            param.requires_grad = False
+    """Configure model for use with tent."""
+    # train mode, because tent optimizes the model to minimize entropy
+    model.train()
+    # disable grad, to (re-)enable only what tent updates
+    model.requires_grad_(False)
+    # configure norm for tent updates: enable grad + force batch statisics
+    for m in model.modules():
+        if isinstance(m, nn.BatchNorm1d):
+            m.requires_grad_(True)
+            # force use of batch stats in train and eval modes
+            m.track_running_stats = False
+            m.running_mean = None
+            m.running_var = None
     return model
 
 def Tent(model, eval_loader,origin_dataset_name,target_dataset_name,iteration,):
-    model.to(device)
+    model.to('cpu')
     model.train()
-
     optimizer = torch.optim.AdamW(
         filter(lambda p: p.requires_grad, model.parameters()), 
-        lr=0.3
+        lr=1e-3
     )
    
 
@@ -32,15 +41,14 @@ def Tent(model, eval_loader,origin_dataset_name,target_dataset_name,iteration,):
     all_probs = []
 
     for batch, label_batch in tqdm(eval_loader, desc="Adapting with Tent"):
-        batch, label_batch = batch.to(device), label_batch.to(device)
-
+        batch, label_batch = batch.to('cpu'), label_batch.to('cpu')
         outputs = model(batch)  # Raw logits
-        probs = F.softmax(outputs, dim=1)
+        probs = torch.softmax(outputs, dim=1)
 
         loss = entropy(outputs).mean()
         loss.backward()
         optimizer.step()
-        model.zero_grad()
+        optimizer.zero_grad()
 
         predictions = torch.argmax(probs, dim=1)
         all_predictions.extend(predictions.cpu().numpy())
