@@ -18,18 +18,15 @@ def configureTent(model):
     # disable grad, to (re-)enable only what tent updates
     model.requires_grad_(False)
     # configure norm for tent updates: enable grad + force batch statisics
+    model.train()
+    model.requires_grad_(False)
     for m in model.modules():
-        if isinstance(m, nn.BatchNorm1d):
+        if isinstance(m, nn.LayerNorm):
             m.requires_grad_(True)
-            # force use of batch stats in train and eval modes
-            m.track_running_stats = False
-            m.running_mean = None
-            m.running_var = None
     return model
 
 def Tent(model, eval_loader,origin_dataset_name,target_dataset_name,iteration,):
     model.to('cpu')
-    model.train()
     optimizer = torch.optim.AdamW(
         filter(lambda p: p.requires_grad, model.parameters()), 
         lr=1e-3

@@ -6,7 +6,7 @@ class MLPWithLayerNorm(nn.Module):
     def __init__(self, input_dim):
         super(MLPWithLayerNorm, self).__init__()
         self.fc1 = nn.Linear(input_dim, 64)
-        self.norm1 = nn.BatchNorm1d(64)  # LayerNorm after first FC layer
+        self.norm1 = nn.LayerNorm(64)  # LayerNorm after first FC layer
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(64, 64)
         # self.norm2 = nn.LayerNorm(64)  # LayerNorm after second FC layer
