@@ -66,6 +66,48 @@ def clean_str(string):
     string = re.sub(r"\"", "", string)
     return string.strip().lower()
 
+def prepare_dataset(dataset):
+    # Make sure output folder exists
+    output_dir = 'title_body'
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Define paths
+    input_path = f'datasets/{dataset}.csv'
+    output_path = os.path.join(output_dir, f'Title+Body_{dataset}.csv')
+
+    # Load and shuffle data
+    pd_all = pd.read_csv(input_path)
+    pd_all = pd_all.sample(frac=1, random_state=999)
+
+    # Merge Title and Body into one column
+    pd_all['Title+Body'] = pd_all.apply(
+        lambda row: row['Title'] + '. ' + row['Body'] if pd.notna(row['Body']) else row['Title'],
+        axis=1
+    )
+
+    # Rename and keep necessary columns
+    pd_tplusb = pd_all.rename(columns={
+        "Unnamed: 0": "id",
+        "class": "sentiment",
+        "Title+Body": "text"
+    })
+
+    # Save to new file
+    pd_tplusb.to_csv(output_path, index=False, columns=["id", "Number", "sentiment", "text"])
+
+    # Return the DataFrame
+    return pd.read_csv(output_path).fillna('')
+
+def check_and_clear_existing_file(file_path):
+    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+        print(f"⚠️  The file '{file_path}' already exists and is not empty.")
+        response = input("Do you want to delete and start over? Type 'yes' to confirm: ").strip().lower()
+        if response != 'yes':
+            print("❌ Operation cancelled by user. No changes made.")
+            exit(1)
+        else:
+            os.remove(file_path)
+            print(f"✅ File '{file_path}' has been deleted. Starting fresh.")
 ########## 3. Download & read data ##########
 import os
 import subprocess
@@ -90,6 +132,14 @@ pd_tplusb = pd_all.rename(columns={
 })
 pd_tplusb.to_csv('Title+Body.csv', index=False, columns=["id", "Number", "sentiment", "text"])
 
+def write_row_to_csv(file_path, columns, values):
+
+    assert len(columns) == len(values), "Columns and values must be the same length."
+    folder = os.path.dirname(file_path)
+    if folder and not os.path.exists(folder):
+        os.makedirs(folder)
+    df = pd.DataFrame([dict(zip(columns, values))])
+    df.to_csv(file_path, mode='a', index=False, header=not os.path.exists(file_path))
 ########## 4. Configure parameters & Start training ##########
 
 # ========== Key Configurations ==========
@@ -98,7 +148,7 @@ pd_tplusb.to_csv('Title+Body.csv', index=False, columns=["id", "Number", "sentim
 datafile = 'Title+Body.csv'
 
 # 2) Number of repeated experiments
-REPEAT = 10
+REPEAT = 20
 
 # 3) Output CSV file name
 out_csv_name = f'../{project}_NB.csv'
@@ -122,20 +172,20 @@ params = {
     'var_smoothing': np.logspace(-12, 0, 13)
 }
 
+
+
 # Lists to store metrics across repeated runs
 accuracies  = []
 precisions  = []
 recalls     = []
 f1_scores   = []
 auc_values  = []
-
+final_clf=None
 for repeated_time in range(REPEAT):
-    # --- 4.1 Split into train/test ---
     indices = np.arange(data.shape[0])
     train_index, test_index = train_test_split(
         indices, test_size=0.2, random_state=repeated_time
     )
-
     train_text = data[text_col].iloc[train_index]
     test_text = data[text_col].iloc[test_index]
 
@@ -167,30 +217,29 @@ for repeated_time in range(REPEAT):
     # --- 4.4 Make predictions & evaluate ---
     y_pred = best_clf.predict(X_test.toarray())
 
-    # Accuracy
+    if(repeated_time== REPEAT-1):
+        final_clf=best_clf 
+
     acc = accuracy_score(y_test, y_pred)
     accuracies.append(acc)
-
-    # Precision (macro)
     prec = precision_score(y_test, y_pred, average='macro')
-    precisions.append(prec)
-
-    # Recall (macro)
+    precisions.append(acc)
     rec = recall_score(y_test, y_pred, average='macro')
     recalls.append(rec)
-
-    # F1 Score (macro)
     f1 = f1_score(y_test, y_pred, average='macro')
     f1_scores.append(f1)
-
-    # AUC
-    # If labels are 0/1 only, this works directly.
-    # If labels are something else, adjust pos_label accordingly.
     fpr, tpr, _ = roc_curve(y_test, y_pred, pos_label=1)
     auc_val = auc(fpr, tpr)
     auc_values.append(auc_val)
+    file_path=f'baselines_data/{project}_NB_detailed_baseline.csv'
+    if(repeated_time==0):
+       check_and_clear_existing_file(file_path)
+    write_row_to_csv(
+        file_path=file_path,
+        columns=['iteration', 'Accuracy', 'Precision', 'Recall', 'F1', 'AUC'],
+        values=[repeated_time, acc, prec, rec, f1, auc_val]
+    )
 
-# --- 4.5 Aggregate results ---
 final_accuracy  = np.mean(accuracies)
 final_precision = np.mean(precisions)
 final_recall    = np.mean(recalls)
@@ -205,26 +254,29 @@ print(f"Average Recall:        {final_recall:.4f}")
 print(f"Average F1 score:      {final_f1:.4f}")
 print(f"Average AUC:           {final_auc:.4f}")
 
-# Save final results to CSV (append mode)
-try:
-    # Attempt to check if the file already has a header
-    existing_data = pd.read_csv(out_csv_name, nrows=1)
-    header_needed = False
-except:
-    header_needed = True
+DATASETS=["caffe","pytorch","keras","incubator-mxnet"]
+for project in DATASETS:
+    data=prepare_dataset(project)
+    for i in range (REPEAT):
+        data = data.sample(frac=1).reset_index(drop=True)
+        texts = data['text']
+        labels = data['sentiment']
+        X_all = tfidf.transform(texts)  
+        y_pred = final_clf.predict(X_all.toarray())
+        acc = accuracy_score(labels, y_pred)
+        prec = precision_score(labels, y_pred, average='macro')
+        rec = recall_score(labels, y_pred, average='macro')
+        f1 = f1_score(labels, y_pred, average='macro')
+        fpr, tpr, _ = roc_curve(labels, y_pred, pos_label=1)
+        auc_val = auc(fpr, tpr)
+        file_path=f'baselines_data/{project}_NB_tensorflow_based_detailed_baseline.csv'
+        if(i==0):
+            check_and_clear_existing_file(file_path)
+        write_row_to_csv(
+            file_path=file_path,
+            columns=['iteration', 'Accuracy', 'Precision', 'Recall', 'F1', 'AUC'],
+            values=[i, acc, prec, rec, f1, auc_val]
+        )
 
-df_log = pd.DataFrame(
-    {
-        'repeated_times': [REPEAT],
-        'Accuracy': [final_accuracy],
-        'Precision': [final_precision],
-        'Recall': [final_recall],
-        'F1': [final_f1],
-        'AUC': [final_auc],
-        'CV_list(AUC)': [str(auc_values)]
-    }
-)
 
-df_log.to_csv(out_csv_name, mode='a', header=header_needed, index=False)
 
-print(f"\nResults have been saved to: {out_csv_name}")
