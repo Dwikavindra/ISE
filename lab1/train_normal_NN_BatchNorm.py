@@ -1,4 +1,4 @@
-
+\
 import pandas as pd
 import numpy as np
 import os
@@ -14,7 +14,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import torch.optim as optim
 import helper
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
 from torch.utils.data import random_split, DataLoader
+import argparse
 
 def check_and_clear_existing_file(file_path):
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
@@ -36,7 +38,11 @@ def write_row_to_csv(file_path, columns, values):
     df.to_csv(file_path, mode='a', index=False, header=not os.path.exists(file_path))
 
 
-for i in range(20):
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='SHOT')
+    parser.add_argument('--iteration', type=int, default=0, help="iteration")
+    args = parser.parse_args()
+    i=args.iteration
     print(f"In iteration {i+1}")
     full_dataset = TextDataset.TextDatasetTFIDF('datasets/tensorflow.csv')
 
@@ -85,13 +91,13 @@ for i in range(20):
     # "auc": auc
     data=helper.evaluate_model(model,val_loader,"tensorflow","tensorflow",i+1)
     file_path=f'base_line_tf/base_data_tensorflow_batchnorm.csv'
-    if(i==0):
-        check_and_clear_existing_file(file_path)
     write_row_to_csv(
                 file_path=file_path,
                 columns=['iteration', 'Accuracy', 'Precision', 'Recall', 'F1', 'AUC'],
                 values=[i+1, data["accuracy"],data["precision"],data["recall"],data["f1"], data["auc"]]
             )
-    model_file_path=f'models/baseline_model_tensorflow_batchnorm{i+1}_iteration.pt'
+    model_file_path=f'models/baseline_batchnorm/baseline_model_tensorflow_batchnorm{i+1}_iteration.pt'
+    directory = os.path.dirname(model_file_path)
+    os.makedirs(directory, exist_ok=True)
     torch.save(model, model_file_path)
     print(f"Finish iteration {i+1} model saved in {model_file_path}")

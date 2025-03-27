@@ -5,7 +5,7 @@ import nltk
 nltk.download('stopwords')
 import torch
 import torch.nn
-from simple_mlp import MLPWithBatchNorm
+from simple_mlp import MLPWithLayerNorm
 import TextDataset
 import os
 import pandas as pd
@@ -13,7 +13,7 @@ from torch.utils.data import  DataLoader
 import helper
 import TextDataset
 torch.serialization.add_safe_globals([
-    MLPWithBatchNorm,
+    MLPWithLayerNorm,
     torch.nn.modules.linear.Linear,
     torch.nn.ReLU,
     torch.nn.modules.activation.ReLU,
@@ -23,7 +23,6 @@ torch.serialization.add_safe_globals([
 
 
 def write_row_to_csv(file_path, columns, values):
-
     assert len(columns) == len(values), "Columns and values must be the same length."
     folder = os.path.dirname(file_path)
     if folder and not os.path.exists(folder):
@@ -37,7 +36,7 @@ for dataset in datasets:
     print(f"In dataset {dataset}")
     for i in range(20):
         print(f"In iteration {i+1}")
-        model_base = torch.load('models/baseline_batchnorm/baseline_model_tensorflow_layernorm1_iteration.pt') ## model as the closest to mean
+        model_base = torch.load('models/baseline_layernorms/baseline_model_tensorflow_layernorm1_iteration.pt') ## model as the closest to mean
         inference_dataset=TextDataset.TextDatasetTFIDF(f"datasets/{dataset}.csv")
         inference_loader = DataLoader(inference_dataset, batch_size=32, shuffle=True)
         result=helper.evaluate_model(model_base,inference_loader,basedataset,dataset,i+1)
