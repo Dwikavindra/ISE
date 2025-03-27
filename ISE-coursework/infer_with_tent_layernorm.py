@@ -38,8 +38,8 @@ for dataset in datasets:
     print(f"In dataset {dataset}")
     for i in range(20):
         print(f"In iteration {i+1}")
-        model_base = torch.load('models/baseline_layernorms/baseline_model_tensorflow_layernorm1_iteration.pt') ## model as the closest to mean
-    
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model_base = torch.load('models/baseline_layernorms/baseline_model_tensorflow_layernorm1_iteration.pt', map_location=device) # model 1 chosen the closest to mean refer to classification_all.ipynb
         inference_dataset=TextDataset.TextDatasetTFIDF(f"datasets/{dataset}.csv")
         inference_loader = DataLoader(inference_dataset, batch_size=32, shuffle=True)
         tented_model= tent.TentLayerNorm(model_base,inference_loader,basedataset,dataset,i+1)

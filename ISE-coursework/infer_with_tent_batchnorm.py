@@ -38,7 +38,8 @@ for dataset in datasets:
     print(f"In dataset {dataset}")
     for i in range(20):
         print(f"In iteration {i+1}")
-        model_base = torch.load('models/baseline_batchnorm/baseline_model_tensorflow_batchnorm20_iteration.pt') ## model as the closest to mean
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model_base = torch.load('models/baseline_batchnorm/baseline_model_tensorflow_batchnorm20_iteration.pt',map_device=device) ## model as the closest to mean
     
         inference_dataset=TextDataset.TextDatasetTFIDF(f"datasets/{dataset}.csv")
         inference_loader = DataLoader(inference_dataset, batch_size=32, shuffle=True)
