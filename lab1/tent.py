@@ -48,7 +48,8 @@ def collect_params(model):
     return params, names
 
 def Tent(model, eval_loader,origin_dataset_name,target_dataset_name,iteration,):
-    model.to('cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
     model=configureTent(model)
     params, param_names = collect_params(model)
     optimizer  = torch.optim.Adam(params, lr=1e-2)
@@ -58,7 +59,7 @@ def Tent(model, eval_loader,origin_dataset_name,target_dataset_name,iteration,):
 
     for batch, label_batch in tqdm(eval_loader, desc="Adapting with Tent"):
         for i in range(1):
-            batch, label_batch = batch.to('cpu'), label_batch.to('cpu')
+            batch, label_batch = batch.to(device), label_batch.to(device)
             outputs = model(batch)  # Raw logits
             probs = torch.softmax(outputs, dim=1)
 
@@ -126,8 +127,8 @@ def collect_params_layer_norm(model):
     return params, names
 
 def TentLayerNorm(model, eval_loader,origin_dataset_name,target_dataset_name,iteration,):
-    print("Here")
-    model.to('cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
     model=configureTentLayerNorm(model)
     params, param_names = collect_params_layer_norm(model)
     optimizer  = torch.optim.Adam(params, lr=1e-2)
@@ -137,7 +138,7 @@ def TentLayerNorm(model, eval_loader,origin_dataset_name,target_dataset_name,ite
 
     for batch, label_batch in tqdm(eval_loader, desc="Adapting with Tent"):
         for i in range(1):
-            batch, label_batch = batch.to('cpu'), label_batch.to('cpu')
+            batch, label_batch = batch.to(device), label_batch.to(device)
             outputs = model(batch)  # Raw logits
             probs = torch.softmax(outputs, dim=1)
 

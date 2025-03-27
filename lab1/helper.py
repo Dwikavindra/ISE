@@ -42,11 +42,15 @@ def train_model(train_loader):
 
 # Helper: evaluate model
 def evaluate_model(model, data_loader, base, testset, iteration):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
     model.eval()
     all_preds, all_probs, all_targets = [], [], []
 
     with torch.no_grad():
         for batch_X, batch_y in data_loader:
+            batch_X=batch_X.to(device)
+            batch_y=batch_y.to(device)
             outputs = model(batch_X)
             probs = torch.softmax(outputs, dim=1)
             preds = torch.argmax(probs, dim=1)
@@ -74,43 +78,4 @@ def evaluate_model(model, data_loader, base, testset, iteration):
         "auc": auc
     }
 
-# Run automation
-# for base_dataset in DATASETS:
-#     all_base_results = []
-#     for _ in range(50):
-#         model, val_loader = train_model(base_dataset)
-#         result = evaluate_model(model, val_loader, base_dataset, base_dataset)
-#         all_base_results.append(result)
-
-#         # Save base model state
-#         torch.save(model.state_dict(), f'models/{base_dataset}.pt')
-
-#         for test_dataset in DATASETS:
-#             if test_dataset == base_dataset:
-#                 continue
-
-#             test_data = TextDataset.TextDatasetTFIDF(f'datasets/{test_dataset}.csv')
-#             test_loader = DataLoader(test_data, batch_size=64, shuffle=False)
-
-#             result_infer = evaluate_model(model, test_loader, base_dataset, test_dataset)
-#             RESULTS.append(result_infer)
-
-#             # Tent evaluation
-#             model_state = copy.deepcopy(model.state_dict())
-#             for name, param in model.named_parameters():
-#                 if "norm" not in name:
-#                     param.requires_grad = False
-
-#             tent.Tent(model, test_data)
-#             result_tented = evaluate_model(model, test_loader, base_dataset, test_dataset, tented=True)
-#             RESULTS.append(result_tented)
-#             tent.reset(model, model_state)
-
-#     # Add base dataset internal validation
-#     RESULTS.extend(all_base_results)
-
-# Save to CSV
-# df_results = pd.DataFrame(RESULTS)
-# os.makedirs("results", exist_ok=True)
-# df_results.to_csv("results/evaluation_results.csv", index=False)
 
